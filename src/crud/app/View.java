@@ -22,12 +22,13 @@ public class View extends JFrame {
         loadData();
     }
 
-   private void initComponents() {
+    private void initComponents() {
         setTitle("CRUD Application");
         setSize(800, 600);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
+        // Initialize components
         JLabel fNameLabel = new JLabel("First Name:");
         JLabel lNameLabel = new JLabel("Last Name:");
         JLabel emailLabel = new JLabel("Email:");
@@ -44,12 +45,14 @@ public class View extends JFrame {
         JButton searchButton = new JButton("Search");
         JButton clearButton = new JButton("Clear");
 
+        // Set button styles
         setButtonStyle(submitButton);
         setButtonStyle(updateButton);
         setButtonStyle(deleteButton);
         setButtonStyle(searchButton);
         setButtonStyle(clearButton);
 
+        // Table setup
         userTable = new JTable();
         userTable.setModel(new DefaultTableModel(
                 new Object[][]{},
@@ -58,6 +61,7 @@ public class View extends JFrame {
         userTable.setFillsViewportHeight(true);
         JScrollPane tableScrollPane = new JScrollPane(userTable);
 
+        // Button actions
         submitButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -93,6 +97,7 @@ public class View extends JFrame {
             }
         });
 
+        // Layout setup using GroupLayout for a modern look
         JPanel panel = new JPanel();
         panel.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
