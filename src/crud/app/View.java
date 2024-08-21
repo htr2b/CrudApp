@@ -1,5 +1,6 @@
 package crud.app;
 
+import crud.app.User;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
@@ -28,7 +29,6 @@ public class View extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        // Initialize components
         JLabel fNameLabel = new JLabel("First Name:");
         JLabel lNameLabel = new JLabel("Last Name:");
         JLabel emailLabel = new JLabel("Email:");
@@ -45,14 +45,12 @@ public class View extends JFrame {
         JButton searchButton = new JButton("Search");
         JButton clearButton = new JButton("Clear");
 
-        // Set button styles
         setButtonStyle(submitButton);
         setButtonStyle(updateButton);
         setButtonStyle(deleteButton);
         setButtonStyle(searchButton);
         setButtonStyle(clearButton);
 
-        // Table setup
         userTable = new JTable();
         userTable.setModel(new DefaultTableModel(
                 new Object[][]{},
@@ -61,7 +59,6 @@ public class View extends JFrame {
         userTable.setFillsViewportHeight(true);
         JScrollPane tableScrollPane = new JScrollPane(userTable);
 
-        // Button actions
         submitButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -97,7 +94,6 @@ public class View extends JFrame {
             }
         });
 
-        // Layout setup using GroupLayout for a modern look
         JPanel panel = new JPanel();
         panel.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
@@ -153,33 +149,107 @@ public class View extends JFrame {
         getContentPane().add(tableScrollPane, BorderLayout.CENTER);
     }
 
-  
-  private void setButtonStyle(JButton button) {
-       
+    private void setButtonStyle(JButton button) {
+        button.setBackground(new Color(0x007BFF));
+        button.setForeground(Color.WHITE);
+        button.setFont(new Font("Arial", Font.BOLD, 12));
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setPreferredSize(new Dimension(100, 30));
     }
 
-   private void handleCreate() {
-       
+    private void handleCreate() {
+        String firstName = fNameField.getText();
+        String lastName = lNameField.getText();
+        String email = emailField.getText();
+
+        if (firstName.isEmpty() || lastName.isEmpty() || email.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "All fields must be filled.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        int id = userList.size() + 1;
+        userList.add(new User(id, firstName, lastName, email));
+        loadData();
+        clearFields();
     }
 
     private void handleUpdate() {
-        
+        try {
+            int id = Integer.parseInt(searchField.getText());
+            User userToUpdate = null;
+
+            for (User user : userList) {
+                if (user.getId() == id) {
+                    userToUpdate = user;
+                    break;
+                }
+            }
+
+            if (userToUpdate != null) {
+                userToUpdate.setFirstName(fNameField.getText());
+                userToUpdate.setLastName(lNameField.getText());
+                userToUpdate.setEmail(emailField.getText());
+                loadData();
+                clearFields();
+            } else {
+                JOptionPane.showMessageDialog(this, "User not found.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Invalid ID format.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void handleDelete() {
-       
+        try {
+            int id = Integer.parseInt(searchField.getText());
+            boolean removed = userList.removeIf(user -> user.getId() == id);
+
+            if (removed) {
+                loadData();
+                clearFields();
+            } else {
+                JOptionPane.showMessageDialog(this, "User not found.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Invalid ID format.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void handleSearch() {
-      
+        try {
+            int id = Integer.parseInt(searchField.getText());
+            User userToSearch = null;
+
+            for (User user : userList) {
+                if (user.getId() == id) {
+                    userToSearch = user;
+                    break;
+                }
+            }
+
+            if (userToSearch != null) {
+                fNameField.setText(userToSearch.getFirstName());
+                lNameField.setText(userToSearch.getLastName());
+                emailField.setText(userToSearch.getEmail());
+            } else {
+                JOptionPane.showMessageDialog(this, "User not found.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Invalid ID format.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void handleClear() {
-      
+        clearFields();
+        loadData();
     }
 
     private void clearFields() {
-       
+        fNameField.setText("");
+        lNameField.setText("");
+        emailField.setText("");
+        searchField.setText("");
     }
 
     private void loadData() {
