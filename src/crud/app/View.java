@@ -1,22 +1,28 @@
 package crud.app;
 
-import crud.app.User;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+
 import static javax.swing.WindowConstants.EXIT_ON_CLOSE;
 
 public class View extends JFrame {
-    private List<User> userList = new ArrayList<>();
+
     private JTextField fNameField;
     private JTextField lNameField;
     private JTextField emailField;
     private JTextField searchField;
     private JTable userTable;
+
+    // MySQL Connection
+    private final String DB_URL = "jdbc:mysql://localhost:3306/your_database";
+    private final String DB_USER = "htr2b";
+    private final String DB_PASSWORD = "htr2b";
 
     public View() {
         initComponents();
@@ -24,6 +30,12 @@ public class View extends JFrame {
     }
 
     private void initComponents() {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+
         setTitle("CRUD Application");
         setSize(800, 600);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -158,6 +170,12 @@ public class View extends JFrame {
         button.setPreferredSize(new Dimension(100, 30));
     }
 
+    private Connection getConnection() throws SQLException {
+        Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        System.out.println("Connection established: " + (conn != null));
+        return conn;
+    }
+
     private void handleCreate() {
         String firstName = fNameField.getText();
         String lastName = lNameField.getText();
@@ -168,75 +186,90 @@ public class View extends JFrame {
             return;
         }
 
-        int id = userList.size() + 1;
-        userList.add(new User(id, firstName, lastName, email));
-        loadData();
-        clearFields();
+        try (Connection conn = getConnection()) {
+            String query = "INSERT INTO users (first_name, last_name, email) VALUES (?, ?, ?)";
+            PreparedStatement stmt = conn.prepareStatement(query);
+            stmt.setString(1, firstName);
+            stmt.setString(2, lastName);
+            stmt.setString(3, email);
+            stmt.executeUpdate();
+            loadData();
+            clearFields();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
     }
 
     private void handleUpdate() {
         try {
             int id = Integer.parseInt(searchField.getText());
-            User userToUpdate = null;
+            String firstName = fNameField.getText();
+            String lastName = lNameField.getText();
+            String email = emailField.getText();
 
-            for (User user : userList) {
-                if (user.getId() == id) {
-                    userToUpdate = user;
-                    break;
+            try (Connection conn = getConnection()) {
+                String query = "UPDATE users SET first_name = ?, last_name = ?, email = ? WHERE id = ?";
+                PreparedStatement stmt = conn.prepareStatement(query);
+                stmt.setString(1, firstName);
+                stmt.setString(2, lastName);
+                stmt.setString(3, email);
+                stmt.setInt(4, id);
+                int rowsAffected = stmt.executeUpdate();
+
+                if (rowsAffected > 0) {
+                    loadData();
+                    clearFields();
+                } else {
+                    JOptionPane.showMessageDialog(this, "User not found.", "Error", JOptionPane.ERROR_MESSAGE);
                 }
             }
-
-            if (userToUpdate != null) {
-                userToUpdate.setFirstName(fNameField.getText());
-                userToUpdate.setLastName(lNameField.getText());
-                userToUpdate.setEmail(emailField.getText());
-                loadData();
-                clearFields();
-            } else {
-                JOptionPane.showMessageDialog(this, "User not found.", "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Invalid ID format.", "Error", JOptionPane.ERROR_MESSAGE);
+        } catch (NumberFormatException | SQLException ex) {
+            ex.printStackTrace();
         }
     }
 
     private void handleDelete() {
         try {
             int id = Integer.parseInt(searchField.getText());
-            boolean removed = userList.removeIf(user -> user.getId() == id);
 
-            if (removed) {
-                loadData();
-                clearFields();
-            } else {
-                JOptionPane.showMessageDialog(this, "User not found.", "Error", JOptionPane.ERROR_MESSAGE);
+            try (Connection conn = getConnection()) {
+                String query = "DELETE FROM users WHERE id = ?";
+                PreparedStatement stmt = conn.prepareStatement(query);
+                stmt.setInt(1, id);
+                int rowsAffected = stmt.executeUpdate();
+
+                if (rowsAffected > 0) {
+                    loadData();
+                    clearFields();
+                } else {
+                    JOptionPane.showMessageDialog(this, "User not found.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
             }
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Invalid ID format.", "Error", JOptionPane.ERROR_MESSAGE);
+        } catch (NumberFormatException | SQLException ex) {
+            ex.printStackTrace();
         }
     }
 
     private void handleSearch() {
         try {
             int id = Integer.parseInt(searchField.getText());
-            User userToSearch = null;
 
-            for (User user : userList) {
-                if (user.getId() == id) {
-                    userToSearch = user;
-                    break;
+            try (Connection conn = getConnection()) {
+                String query = "SELECT * FROM users WHERE id = ?";
+                PreparedStatement stmt = conn.prepareStatement(query);
+                stmt.setInt(1, id);
+                ResultSet rs = stmt.executeQuery();
+
+                if (rs.next()) {
+                    fNameField.setText(rs.getString("first_name"));
+                    lNameField.setText(rs.getString("last_name"));
+                    emailField.setText(rs.getString("email"));
+                } else {
+                    JOptionPane.showMessageDialog(this, "User not found.", "Error", JOptionPane.ERROR_MESSAGE);
                 }
             }
-
-            if (userToSearch != null) {
-                fNameField.setText(userToSearch.getFirstName());
-                lNameField.setText(userToSearch.getLastName());
-                emailField.setText(userToSearch.getEmail());
-            } else {
-                JOptionPane.showMessageDialog(this, "User not found.", "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Invalid ID format.", "Error", JOptionPane.ERROR_MESSAGE);
+        } catch (NumberFormatException | SQLException ex) {
+            ex.printStackTrace();
         }
     }
 
@@ -253,11 +286,39 @@ public class View extends JFrame {
     }
 
     private void loadData() {
+        List<User> users = new ArrayList<>();
+
+        try (Connection conn = getConnection()) {
+            String query = "SELECT * FROM users";
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(query);
+
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String firstName = rs.getString("first_name");
+                String lastName = rs.getString("last_name");
+                String email = rs.getString("email");
+
+                users.add(new User(id, firstName, lastName, email));
+            }
+
+            populateTable(users);
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void populateTable(List<User> users) {
         DefaultTableModel model = (DefaultTableModel) userTable.getModel();
         model.setRowCount(0);
 
-        for (User user : userList) {
-            model.addRow(new Object[]{user.getId(), user.getFirstName(), user.getLastName(), user.getEmail()});
+        for (User user : users) {
+            model.addRow(new Object[]{
+                user.getId(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getEmail()
+            });
         }
     }
 
